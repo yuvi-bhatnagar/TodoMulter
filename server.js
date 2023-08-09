@@ -9,7 +9,6 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(express.static("uploads"));
 app.use(function (req, res, next) {
-  console.log(req.method, req.url);
   next();
 });
 app.use(
@@ -187,9 +186,9 @@ app.post("/signup", function (request, response) {
 
 
 app.post("/todo",upload.single("image"), function (request, response) {
-  let todo = request.body;
-  const image=request.file;
-  todo.imageName = image.filename; 
+  let todo = JSON.parse(request.body.todo); 
+  const image = request.file;
+  todo.imageName = image.filename;
   saveTodos(todo, function (error) {
     if (error) {
       response.status(500);
@@ -209,6 +208,12 @@ app.delete("/todo", function (request, response) {
       response.json({ error: error });
     } else {
       const filteredTodos = todos.filter(function (todoItem) {
+        if(todoItem.text===todo.text){
+          const path=__dirname+"/uploads/"+todoItem.imageName;
+          fs.unlink(path, function(error) {
+            console.log(error)
+          })
+        }
         return todoItem.text !== todo.text;
       });
 
@@ -284,6 +289,23 @@ function saveTodos(todo, callback) {
     }
   });
 }
+app.post("/img", function (request, response) {
+  const todo = request.body;
+  getTodos(null, true, function (error, todos) {
+    if (error) {
+      response.status(500);
+      response.json({ error: error });
+    } else {
+      const image = todos.filter(function (todoItem) {
+        if (todoItem.text === todo.text && todoItem.user === todo.user) {
+          return todoItem.imageName;
+        }        
+      });
+      response.status(200);
+      response.json(image[0].imageName);
+    }
+  });
+});
 app.post("/change", function (request, response) {
   const todo = request.body;
   getTodos(null, true, function (error, todos) {
@@ -292,8 +314,8 @@ app.post("/change", function (request, response) {
       response.json({ error: error });
     } else {
       const newtodolist = todos.filter(function (todoItem) {
-        if (todoItem.text === todo.text && todoItem.user === todo.user) {
-          if (todoItem.iscompleted == false) {
+        if (todoItem.text === todo.text && todoItem.createdBy === todo.createdBy) {
+          if (todoItem.iscompleted === false) {
             todoItem.iscompleted = true;
             return todoItem;
           } else {

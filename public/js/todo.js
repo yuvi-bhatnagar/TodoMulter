@@ -15,10 +15,16 @@ addTodoButton.addEventListener("click", function (e) {
       if (error) {
         alert(error);
       } else {
-
-        addTodoToDOM(todoTextValue,false,imageValue);
-        todoTextNode.value="";
-        todoImage.value="";
+        (async function() {
+          try {
+            const imageValue = await getImage(todoTextValue);
+            addTodoToDOM(todoTextValue, false, imageValue);
+            todoTextNode.value = "";
+            todoImage.value = "";
+          } catch (error) {
+            console.error("Error:", error);
+          }
+        })();
       }
     });
   } else {
@@ -27,9 +33,7 @@ addTodoButton.addEventListener("click", function (e) {
 });
 function saveTodo(todo,image, callback) {
   const formData = new FormData();
-  formData.append("text", todo);
-  formData.append("iscompleted", false);
-  formData.append("createdBy", userName);
+  formData.append("todo", JSON.stringify({"text": todo,"iscompleted":false,"createdBy":userName}));
   formData.append("image", image);
   fetch("/todo", {
     method: "POST",
@@ -55,7 +59,7 @@ function addTodoToDOM(todo,iscompleted,imgName) {
   image.style="width:2.5rem;height:2.5rem;margin:0 1rem";
   checkbox.type = "checkbox";
   checkbox.value="false";
-  if (iscompleted==true) {
+  if (iscompleted===true) {
     todolabel.style.textDecoration = "line-through";
     checkbox.value = "true";
     checkbox.checked =true;
@@ -137,6 +141,25 @@ function changeStatus(todo, callback) {
       callback("Something went wrong");
     }
   });
+}
+async function getImage(todo) {
+  try {
+    const response = await fetch("/img", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text: todo, createdBy: userName }),
+    });
+
+    if (response.status === 200) {
+      const image = await response.json();
+      return image;
+    } else {
+      alert("Something went wrong");
+    }
+  } catch (error) {
+    console.error("Error fetching image:", error);
+    alert("Error fetching image");
+  }
 }
 function deleteTodo(todo, callback) {
   fetch("/todo", {
